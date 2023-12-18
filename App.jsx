@@ -1,102 +1,76 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import aleoLogo from "./assets/aleo.svg";
+import { useEffect, useState } from "react";
 import "./App.css";
-import helloworld_program from "../helloworld/build/main.aleo?raw";
-import { AleoWorker } from "./workers/AleoWorker.js";
+import { Account } from '@aleohq/sdk';
+import { useAleoWASM } from "./aleo-wasm-hook.js";
 
-const aleoWorker = AleoWorker();
 function App() {
-  const [count, setCount] = useState(0);
-  const [account, setAccount] = useState(null);
-  const [executing, setExecuting] = useState(false);
-  const [deploying, setDeploying] = useState(false);
+  const aleo = useAleoWASM();
+  const [accountInfo, setAccountInfo] = useState(null);
+  const [privateKey, setPrivateKey] = useState(""); 
+  const [currentScreen, setCurrentScreen] = useState("home");
 
-  const generateAccount = async () => {
-    const key = await aleoWorker.getPrivateKey();
-    setAccount(await key.to_string());
+  const createAccount = () => {
+    const newAccount = new Account();
+    setAccountInfo({
+      privateKey: newAccount.privateKey().to_string(),
+      viewKey: newAccount.viewKey().to_string(),
+      address: newAccount.address().to_string()
+    });
+    setCurrentScreen("accountInfo");
   };
 
-  async function execute() {
-    setExecuting(true);
-    const result = await aleoWorker.localProgramExecution(
-      helloworld_program,
-      "main",
-      ["5u32", "5u32"],
-    );
-    setExecuting(false);
-
-    alert(JSON.stringify(result));
-  }
-
-  async function deploy() {
-    setDeploying(true);
-    try {
-      const result = await aleoWorker.deployProgram(helloworld_program);
-      console.log("Transaction:")
-      console.log("https://explorer.hamp.app/transaction?id=" + result)
-      alert("Transaction ID: " + result);
-    } catch (e) {
-      console.log(e)
-      alert("Error with deployment, please check console for details");
+  const importWallet = (inputPrivateKey) => {
+    if (aleo) {
+      const importedAccount = aleo.PrivateKey.from_string(inputPrivateKey);
+      setAccountInfo({
+        privateKey: importedAccount.privateKey().to_string(),
+        viewKey: importedAccount.viewKey().to_string(),
+        address: importedAccount.to_address().to_string()
+      });
+      setCurrentScreen("accountInfo");
     }
-    setDeploying(false);
-  }
+  };
+
+  const handleInputChange = (event) => setPrivateKey(event.target.value);
 
   return (
-    <>
-      <div>
-        <a href="https://aleo.org" target="_blank">
-          <img src={aleoLogo} className="logo" alt="Aleo logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Aleo + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          <button onClick={generateAccount}>
-            {account
-              ? `Account is ${JSON.stringify(account)}`
-              : `Click to generate account`}
-          </button>
-        </p>
-        <p>
-          <button disabled={executing} onClick={execute}>
-            {executing
-              ? `Executing...check console for details...`
-              : `Execute helloworld.aleo`}
-          </button>
-        </p>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-
-      {/* Advanced Section */}
-      <div className="card">
-        <h2>Advanced Actions</h2>
-        <p>
-          Deployment on Aleo requires certain prerequisites like seeding your
-          wallet with credits and retrieving a fee record. Check README for more
-          details.
-        </p>
-        <p>
-          <button disabled={deploying} onClick={deploy}>
-            {deploying
-              ? `Deploying...check console for details...`
-              : `Deploy helloworld.aleo`}
-          </button>
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Aleo and React logos to learn more
-      </p>
-    </>
+    <div className="App">
+      <header className="App-header">
+        <h1>Aleo Wallet</h1>
+        {/* Screen Navigation Buttons */}
+        {currentScreen === "home" && (
+          <>
+            <button onClick={() => setCurrentScreen("createAccount")}>Create Account</button>
+            <button onClick={() => setCurrentScreen("importWallet")}>Import Wallet</button>
+          </>
+        )}
+        {/* Account Creation Screen */}
+        {currentScreen === "createAccount" && (
+          <button onClick={createAccount}>Create New Account</button>
+        )}
+        {/* Wallet Import Screen */}
+        {currentScreen === "importWallet" && (
+          <div>
+            <input 
+              type="text"
+              placeholder="Enter your private key"
+              value={privateKey}
+              onChange={handleInputChange}
+            />
+            <button onClick={() => importWallet(privateKey)}>Import</button>
+          </div>
+        )}
+        {/* Account Information Display */}
+        {currentScreen === "accountInfo" && accountInfo && (
+          <div>
+            <p>Account Created!</p>
+            <p>Private Key: {accountInfo.privateKey}</p>
+            <p>View Key: {accountInfo.viewKey}</p>
+            <p>Address: {accountInfo.address}</p>
+          </div>
+        )}
+      </header>
+    </div>
   );
 }
 
