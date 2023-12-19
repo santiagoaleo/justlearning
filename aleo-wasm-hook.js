@@ -29,5 +29,5 @@ export const useAleoWASM = () => {
             });
         }
     }, []);
-    return [aleoInstance, loading];
+    return aleoInstance;
 };
